@@ -51,7 +51,7 @@ echo "==> Mounting ${BOOT_PARTITION} to ${BOOT_DIR}"
 
 echo '==> Bootstrapping the base installation'
 /usr/bin/pacstrap ${TARGET_DIR} base base-devel
-/usr/bin/arch-chroot ${TARGET_DIR} pacman -S --noconfirm linux openssh cloud-utils
+/usr/bin/arch-chroot ${TARGET_DIR} pacman -S --noconfirm linux openssh inetutilsloud-utils cloud-init dhclient
 echo '==> Installing boot loader'
 /usr/bin/bootctl --path=${BOOT_DIR} install
 
@@ -80,14 +80,17 @@ cat <<-EOF > "${TARGET_DIR}${CONFIG_SCRIPT}"
 	/usr/bin/usermod --password ${PASSWORD} root
 	# https://wiki.archlinux.org/index.php/Network_Configuration#Device_names
 	/usr/bin/ln -s /dev/null /etc/udev/rules.d/80-net-setup-link.rules
-	/usr/bin/ln -s '/usr/lib/systemd/system/dhcpcd@.service' '/etc/systemd/system/multi-user.target.wants/dhcpcd@eth0.service'
+	# /usr/bin/ln -s '/usr/lib/systemd/system/dhcpcd@.service' '/etc/systemd/system/multi-user.target.wants/dhcpcd@eth0.service'
+        /usr/bin/systemctl enable dhcpcd.service
 	/usr/bin/sed -i 's/#UseDNS yes/UseDNS no/' /etc/ssh/sshd_config
 	/usr/bin/systemctl enable sshd.service
         /usr/bin/systemctl enable systemd-timesyncd.service
 
-	# Workaround for https://bugs.archlinux.org/task/58355 which prevents sshd to accept connections after reboot
 	/usr/bin/pacman -S --noconfirm rng-tools
 	/usr/bin/systemctl enable rngd
+        echo 'datasource_list: [ Exoscale, None ]' > /etc/cloud/cloud.cfg.d/10_datasources.cfg
+        /usr/bin/systemctl enable cloud-init.service
+        /usr/bin/systemctl enable cloud-final.service
 
 EOF
 
