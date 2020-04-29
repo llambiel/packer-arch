@@ -29,10 +29,10 @@ echo "==> Destroying magic strings and signatures on ${DISK}"
 /usr/bin/wipefs --all ${DISK}
 
 echo "==> Creating /boot partition on ${DISK}"
-/usr/bin/sgdisk --new=1:2M:128M ${DISK} -t 0:EF00
+/usr/bin/sgdisk --new=1:2M:256M ${DISK} -t 1:ef00
 
 echo "==> Creating /root partition on ${DISK}"
-/usr/bin/sgdisk --new=2:0:0 ${DISK} -t 0:8300
+/usr/bin/sgdisk --new=2:0:0 ${DISK} -t 2:8300
 
 echo '==> Creating /boot filesystem (FAT32)'
 /usr/bin/mkfs.vfat -F32 -n EFI ${BOOT_PARTITION}
@@ -40,24 +40,24 @@ echo '==> Creating /boot filesystem (FAT32)'
 echo '==> Creating /root filesystem (ext4)'
 /usr/bin/mkfs.ext4 -O ^64bit -F -m 0 -q -L root ${ROOT_PARTITION}
 
+echo "==> Mounting ${ROOT_PARTITION} to ${TARGET_DIR}"
+/usr/bin/mount -o noatime,errors=remount-ro ${ROOT_PARTITION} ${TARGET_DIR}
+
 echo "==> Creating ${BOOT_DIR}"
-/usr/bin/mkdir ${BOOT_DIR}
+/usr/bin/mkdir -p ${BOOT_DIR}
 
 echo "==> Mounting ${BOOT_PARTITION} to ${BOOT_DIR}"
 /usr/bin/mount ${BOOT_PARTITION} ${BOOT_DIR}
-
-echo "==> Mounting ${ROOT_PARTITION} to ${TARGET_DIR}"
-/usr/bin/mount -o noatime,errors=remount-ro ${ROOT_PARTITION} ${TARGET_DIR}
 
 echo '==> Bootstrapping the base installation'
 /usr/bin/pacstrap ${TARGET_DIR} base base-devel
 /usr/bin/arch-chroot ${TARGET_DIR} pacman -S --noconfirm linux openssh cloud-utils
 echo '==> Installing boot loader'
-/usr/bin/arch-chroot ${TARGET_DIR} /usr/bin/bootctl --path=/boot install
+/usr/bin/bootctl --path=${BOOT_DIR} install
 
 echo '==> Creating boot loader entry'
 /usr/bin/mkdir -p ${BOOT_DIR}/loader/entries/
-cat <<-EOF > "${BOOT_DIR}/loader/entries/arch.conf
+cat <<-EOF > "${BOOT_DIR}/loader/entries/arch.conf"
 title   Arch Linux
 linux   /vmlinuz-linux
 initrd  /initramfs-linux.img
@@ -95,18 +95,9 @@ echo '==> Entering chroot and configuring system'
 /usr/bin/arch-chroot ${TARGET_DIR} ${CONFIG_SCRIPT}
 rm "${TARGET_DIR}${CONFIG_SCRIPT}"
 
-# http://comments.gmane.org/gmane.linux.arch.general/48739
-echo '==> Adding workaround for shutdown race condition'
-/usr/bin/install --mode=0644 /root/poweroff.timer "${TARGET_DIR}/etc/systemd/system/poweroff.timer"
-
-echo '==> Installation complete!'
-/usr/bin/sleep 3
+echo "==> Umounting ${BOOT_DIR} and ${TARGET_DIR}"
 /usr/bin/umount ${BOOT_DIR}
 /usr/bin/umount ${TARGET_DIR}
-# Turning network interfaces down to make sure SSH session was dropped on host.
-# More info at: https://www.packer.io/docs/provisioners/shell.html, section - Handling reboots
-echo '==> Turning down network interfaces and rebooting'
-for i in $(/usr/bin/netstat -i | /usr/bin/tail +3 | /usr/bin/awk '{print $1}'); do /usr/bin/ip link set ${i} down; done
-echo '==> Pacman cleanup'
-/usr/bin/yes | /usr/bin/pacman -Scc
-/usr/bin/systemctl shutdown
+
+echo '==> Installation complete!'
+

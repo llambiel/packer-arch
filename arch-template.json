@@ -25,7 +25,7 @@
             "ssh_username": "arch",
             "ssh_password": "arch",
             "ssh_timeout": "{{ user `ssh_timeout` }}",
-            "shutdown_command": "sudo systemctl start poweroff.timer",
+            "shutdown_command": "sudo shutdown -h now",
             "headless" : "{{ user `headless`}}"
         }
     ],
