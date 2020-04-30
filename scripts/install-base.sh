@@ -51,7 +51,7 @@ echo "==> Mounting ${BOOT_PARTITION} to ${BOOT_DIR}"
 
 echo '==> Bootstrapping the base installation'
 /usr/bin/pacstrap ${TARGET_DIR} base base-devel
-/usr/bin/arch-chroot ${TARGET_DIR} pacman -S --noconfirm linux openssh inetutilsloud-utils cloud-init dhclient
+/usr/bin/arch-chroot ${TARGET_DIR} pacman -S --noconfirm linux openssh inetutils cloud-utils cloud-init dhcpcd
 echo '==> Installing boot loader'
 /usr/bin/bootctl --path=${BOOT_DIR} install
 
